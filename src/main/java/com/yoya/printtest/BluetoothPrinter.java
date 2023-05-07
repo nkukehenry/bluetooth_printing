@@ -11,11 +11,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
-/**
- * Created by Martin Forejt on 28.06.2017.
- * forejt.martin97@gmail.com
- */
-
 public class BluetoothPrinter {
 
     public static final int ALIGN_CENTER = 100;
