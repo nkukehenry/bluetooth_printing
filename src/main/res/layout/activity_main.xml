@@ -47,7 +47,7 @@
         android:layout_height="wrap_content"
         android:layout_marginLeft="@dimen/common_margin"
         android:layout_marginRight="@dimen/common_margin"
-        android:layout_marginTop="@dimen/common_margin"
+        android:layout_marginTop="@dimen/unique_margin"
         android:text="打印-PRINT"
         android:layout_marginBottom="@dimen/common_margin"/>
 
