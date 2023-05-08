@@ -1,5 +1,6 @@
 package com.yoya.printtest;
 
+import android.annotation.SuppressLint;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothSocket;
 import android.graphics.Bitmap;
@@ -7,6 +8,8 @@ import android.os.AsyncTask;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.io.OutputStreamWriter;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -25,21 +28,40 @@ public class BluetoothPrinter {
     private BluetoothDevice printer;
     private BluetoothSocket btSocket = null;
     private OutputStream btOutputStream = null;
+    private OutputStreamWriter mWriter = null;
 
     public BluetoothPrinter(BluetoothDevice printer) {
         this.printer = printer;
     }
 
+
+    public void initPrinter() throws IOException {
+        mWriter.write(0x1B);
+        mWriter.write(0x40);
+        mWriter.flush();
+    }
+
     public void connectPrinter(final PrinterConnectListener listener) {
         new ConnectTask(new ConnectTask.BtConnectListener() {
+            @SuppressLint("MissingPermission")
             @Override
             public void onConnected(BluetoothSocket socket) {
-                btSocket = socket;
                 try {
+
+                    if(!socket.isConnected()){
+                        socket.connect();
+                    }
+
+                    btSocket = socket;
+
                     btOutputStream = socket.getOutputStream();
+                    mWriter = new OutputStreamWriter(btOutputStream, StandardCharsets.US_ASCII);
                     listener.onConnected();
-                } catch (IOException e) {
+                }
+                catch (IOException e) {
                     listener.onFailed();
+
+                    btSocket = socket;
                 }
             }
 
@@ -167,12 +189,18 @@ public class BluetoothPrinter {
 
             try {
                 socket = device.createRfcommSocketToServiceRecord(uuid);
-            } catch (IOException e) {
+
+            }
+            catch (IOException e) {
                 e.printStackTrace();
             }
             try {
-                socket.connect();
-            } catch (IOException e) {
+               socket.connect();
+            }
+            catch (IOException e) {
+
+                e.printStackTrace();
+
                 try {
                     socket = (BluetoothSocket) device.getClass().getMethod("createRfcommSocket", new Class[]{int.class})
                             .invoke(device, 1);

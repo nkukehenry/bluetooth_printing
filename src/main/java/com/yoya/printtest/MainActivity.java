@@ -19,10 +19,13 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.os.Build;
 import android.os.Bundle;
+import android.os.ParcelUuid;
 import android.provider.Settings;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
+import android.support.annotation.RequiresApi;
 import android.support.v4.app.ActivityCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
@@ -39,9 +42,15 @@ import android.widget.Toast;
 
 import com.yoya.printtest.R;
 
+import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 //implements View.OnClickListener
 
@@ -75,6 +84,7 @@ public class MainActivity extends AppCompatActivity {
 
         mBtnPrint = (Button) findViewById(R.id.btn_print);
         mBtnPrint.setOnClickListener(new View.OnClickListener() {
+            @SuppressLint("NewApi")
             @Override
             public void onClick(View view) {
 
@@ -85,24 +95,69 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
+    @RequiresApi(api = Build.VERSION_CODES.N)
     private void testPrinting() {
 
-        BluetoothAdapter btAdapter = BluetoothAdapter.getDefaultAdapter();
+        //BluetoothAdapter btAdapter = BluetoothAdapter.getDefaultAdapter();
+        BluetoothManager btManager = (BluetoothManager) getSystemService(Context.BLUETOOTH_SERVICE);
+        BluetoothAdapter btAdapter = btManager.getAdapter();
 
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.BLUETOOTH_CONNECT}, PERMISSION_REQUEST_CODE);
           //  return;
         }
 
-       List<BluetoothDevice> printerDevices = BluetoothUtil.getPairedDevices();
+
+        try {
+            if(!btAdapter.isEnabled()){
+                Log.e("UUID", "BT wasn't enabled");
+                btAdapter.enable();
+            }
+        }
+        catch (Exception e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
+
+
+        Method getUuidsMethod = null;
+        try {
+            getUuidsMethod = BluetoothAdapter.class.getDeclaredMethod("getUuids", null);
+
+            try {
+                ParcelUuid[] uuids = (ParcelUuid[]) getUuidsMethod.invoke(btAdapter, null);
+                if(uuids.length >0){
+
+                    Iterator<ParcelUuid> it = Arrays.stream(uuids).iterator();
+
+                    while(it.hasNext()) {
+                        Log.e("UUID", String.valueOf(it.next().getUuid()));
+                    }
+
+
+                }
+
+            } catch (IllegalAccessException e) {
+                e.printStackTrace();
+            } catch (InvocationTargetException e) {
+                e.printStackTrace();
+            }
+
+        } catch (NoSuchMethodException e) {
+            e.printStackTrace();
+        }
+
+
+       Set<BluetoothDevice> printerDevices = btAdapter.getBondedDevices();
 
         // Get first paired device
-        BluetoothDevice mBtDevice = printerDevices.get(0);
+        BluetoothDevice mBtDevice = printerDevices.iterator().next();
 
             final BluetoothPrinter mPrinter = new BluetoothPrinter(mBtDevice);
 
             if(mPrinter!=null){
                 Log.e("printer",mPrinter.getDevice().getAddress());
+                Log.e("printer",mPrinter.getDevice().getName());
             }else{
                 Log.e("printer","No printer selected");
                 return;
@@ -112,6 +167,15 @@ public class MainActivity extends AppCompatActivity {
 
                 @Override
                 public void onConnected() {
+
+                    try {
+                        mPrinter.initPrinter();
+                    } catch (IOException e) {
+                        Log.d("BluetoothPrinter", "Printer Init failed");
+                        e.printStackTrace();
+                    }
+
+                    Log.d("BluetoothPrinter", "Try to print");
                     mPrinter.setAlign(BluetoothPrinter.ALIGN_CENTER);
                     mPrinter.printText("Hello World!");
                     mPrinter.addNewLine();
